@@ -26,8 +26,7 @@ export default function Scene({ mode, onMediaClick }: SceneProps) {
       {/* Render media nodes with image textures */}
       {mediaPositions.map((position, index) => (
         <MediaNode
-          key={index}
-          id={mediaItems[index].id}
+          key={mediaItems[index].id}
           position={position}
           imageUrl={mediaItems[index].imageUrl}
           isVideo={mediaItems[index].type === 'video'}

@@ -5,13 +5,12 @@ import { TextureLoader } from 'three'
 
 interface MediaNodeProps {
   position: [number, number, number]
-  id: string
   imageUrl: string
   isVideo: boolean
   onMediaClick: () => void
 }
 
-export default function MediaNode({ position, id, imageUrl, isVideo, onMediaClick }: MediaNodeProps) {
+export default function MediaNode({ position, imageUrl, isVideo, onMediaClick }: MediaNodeProps) {
   const meshRef = useRef<Mesh>(null)
   const [hovered, setHovered] = useState(false)
 
