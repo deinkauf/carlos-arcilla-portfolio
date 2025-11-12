@@ -11,10 +11,9 @@ const AUTO_ROTATE_SPEED = 0.5
 
 interface SceneProps {
   onMediaClick: (media: MediaItem) => void
-  focusedIndex: number
 }
 
-export default function Scene({ onMediaClick, focusedIndex }: SceneProps) {
+export default function Scene({ onMediaClick }: SceneProps) {
   const controlsRef = useRef<OrbitControlsImpl>(null)
   const [isInteracting, setIsInteracting] = useState(false)
   const interactionTimeoutRef = useRef<NodeJS.Timeout>()
@@ -82,7 +81,6 @@ export default function Scene({ onMediaClick, focusedIndex }: SceneProps) {
           position={position}
           imageUrl={mediaItems[index].imageUrl}
           isVideo={mediaItems[index].type === 'video'}
-          isFocused={index === focusedIndex}
           onMediaClick={() => onMediaClick(mediaItems[index])}
         />
       ))}

@@ -8,7 +8,6 @@ interface MediaNodeProps {
   position: [number, number, number]
   imageUrl: string
   isVideo: boolean
-  isFocused: boolean
   onMediaClick: () => void
 }
 
@@ -36,7 +35,7 @@ function LoadingPlaceholder({ position }: { position: [number, number, number] }
 }
 
 // Actual media node with texture
-function MediaNodeContent({ position, imageUrl, isVideo, isFocused, onMediaClick }: MediaNodeProps) {
+function MediaNodeContent({ position, imageUrl, isVideo, onMediaClick }: MediaNodeProps) {
   const meshRef = useRef<Mesh>(null)
   const [hovered, setHovered] = useState(false)
 
@@ -112,18 +111,6 @@ function MediaNodeContent({ position, imageUrl, isVideo, isFocused, onMediaClick
             <meshBasicMaterial color="#000000" />
           </mesh>
         </group>
-      )}
-
-      {/* Focus indicator border */}
-      {isFocused && (
-        <mesh position={[0, 0, -0.01]}>
-          <planeGeometry args={[width + 0.08, height + 0.08]} />
-          <meshBasicMaterial
-            color="#4a9eff"
-            transparent
-            opacity={0.6}
-          />
-        </mesh>
       )}
     </mesh>
   )

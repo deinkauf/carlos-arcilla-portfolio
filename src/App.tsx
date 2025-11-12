@@ -72,7 +72,6 @@ function App() {
             const index = mediaItems.findIndex(item => item.id === media.id)
             if (index !== -1) setFocusedIndex(index)
           }}
-          focusedIndex={focusedIndex}
         />
       </Canvas>
 
