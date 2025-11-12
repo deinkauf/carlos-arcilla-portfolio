@@ -1,16 +1,42 @@
 import { useRef, useState, useMemo } from 'react'
-import { Mesh, Shape, ShapeGeometry } from 'three'
+import { Mesh, Shape, ShapeGeometry, Color } from 'three'
 import { useFrame, useLoader } from '@react-three/fiber'
 import { TextureLoader } from 'three'
+import { Suspense } from 'react'
 
 interface MediaNodeProps {
   position: [number, number, number]
   imageUrl: string
   isVideo: boolean
+  isFocused: boolean
   onMediaClick: () => void
 }
 
-export default function MediaNode({ position, imageUrl, isVideo, onMediaClick }: MediaNodeProps) {
+// Loading placeholder component
+function LoadingPlaceholder({ position }: { position: [number, number, number] }) {
+  const meshRef = useRef<Mesh>(null)
+
+  useFrame(() => {
+    if (meshRef.current) {
+      // Keep the plane oriented to face outward from sphere
+      meshRef.current.lookAt(
+        position[0] * 2,
+        position[1] * 2,
+        position[2] * 2
+      )
+    }
+  })
+
+  return (
+    <mesh ref={meshRef} position={position}>
+      <planeGeometry args={[0.6, 0.6]} />
+      <meshStandardMaterial color="#e0e0e0" opacity={0.6} transparent />
+    </mesh>
+  )
+}
+
+// Actual media node with texture
+function MediaNodeContent({ position, imageUrl, isVideo, isFocused, onMediaClick }: MediaNodeProps) {
   const meshRef = useRef<Mesh>(null)
   const [hovered, setHovered] = useState(false)
 
@@ -87,6 +113,27 @@ export default function MediaNode({ position, imageUrl, isVideo, onMediaClick }:
           </mesh>
         </group>
       )}
+
+      {/* Focus indicator border */}
+      {isFocused && (
+        <mesh position={[0, 0, -0.01]}>
+          <planeGeometry args={[width + 0.08, height + 0.08]} />
+          <meshBasicMaterial
+            color="#4a9eff"
+            transparent
+            opacity={0.6}
+          />
+        </mesh>
+      )}
     </mesh>
+  )
+}
+
+// Main export with Suspense wrapper
+export default function MediaNode(props: MediaNodeProps) {
+  return (
+    <Suspense fallback={<LoadingPlaceholder position={props.position} />}>
+      <MediaNodeContent {...props} />
+    </Suspense>
   )
 }
