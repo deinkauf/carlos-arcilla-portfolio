@@ -170,11 +170,14 @@ function MediaNodeContent({
     <mesh
       ref={meshRef}
       position={scatterPosition}
-      onPointerOver={() => setHovered(true)}
+      onPointerOver={() => formationProgress > 0.95 && setHovered(true)}
       onPointerOut={() => setHovered(false)}
       onClick={(e) => {
-        e.stopPropagation()
-        onMediaClick()
+        // Only allow clicks when globe is fully formed
+        if (formationProgress >= 1) {
+          e.stopPropagation()
+          onMediaClick()
+        }
       }}
     >
       <planeGeometry args={[width, height]} />
