@@ -53,18 +53,26 @@ export default function Scene({
     generateScatterPositions(MEDIA_COUNT, SPHERE_RADIUS)
   )
   const hasGeneratedNext = useRef(false)
+  const previousProgress = useRef(formationProgress)
 
-  // Generate NEW scatter positions when globe is fully formed
-  // This way, when decay starts, nodes already know where to scatter to
+  // Generate NEW scatter positions when globe is fully formed AND stable
+  // Wait a moment after reaching 100% to ensure nodes are at sphere positions
   useEffect(() => {
-    if (formationProgress >= 1 && !hasGeneratedNext.current) {
-      // Globe is fully formed - generate new scatter positions for next decay
-      setScatterPositions(generateScatterPositions(MEDIA_COUNT, SPHERE_RADIUS))
-      hasGeneratedNext.current = true
+    // Only generate when crossing the threshold from below to above 0.99
+    if (formationProgress >= 0.99 && previousProgress.current < 0.99 && !hasGeneratedNext.current) {
+      // Use a small delay to ensure nodes have reached sphere positions
+      const timeout = setTimeout(() => {
+        setScatterPositions(generateScatterPositions(MEDIA_COUNT, SPHERE_RADIUS))
+        hasGeneratedNext.current = true
+      }, 500) // Wait 500ms after formation completes
+
+      return () => clearTimeout(timeout)
     } else if (formationProgress < 0.5) {
       // Reset flag when formation decays below 50%
       hasGeneratedNext.current = false
     }
+
+    previousProgress.current = formationProgress
   }, [formationProgress])
 
   // Ensure OrbitControls are enabled in globe mode
