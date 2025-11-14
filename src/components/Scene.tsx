@@ -3,7 +3,6 @@ import { useThree } from '@react-three/fiber'
 import { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { OrbitControls } from '@react-three/drei'
 import { Vector3 } from 'three'
-import { animate } from 'motion'
 import MediaNode from './MediaNode'
 import { generateSpherePositions } from '../utils/sphericalPositions'
 import { mediaItems, MediaItem } from '../data/mediaData'
@@ -72,38 +71,62 @@ export default function Scene({
 
       setIsAnimating(true)
 
-      // Disable OrbitControls during transition
-      if (controlsRef.current) {
-        controlsRef.current.enabled = false
+      // Animate camera position using useFrame pattern
+      const startTime = Date.now()
+      const startPos = camera.position.clone()
+      const duration = 800 // ms
+
+      const updateCamera = () => {
+        const elapsed = Date.now() - startTime
+        const progress = Math.min(elapsed / duration, 1)
+
+        // Easing function (ease-in-out)
+        const eased = progress < 0.5
+          ? 2 * progress * progress
+          : 1 - Math.pow(-2 * progress + 2, 2) / 2
+
+        camera.position.lerpVectors(startPos, targetPosition, eased)
+        camera.lookAt(nodeVector)
+
+        if (progress < 1) {
+          requestAnimationFrame(updateCamera)
+        } else {
+          setIsAnimating(false)
+          onTransitionComplete()
+        }
       }
 
-      // Animate camera position and lookAt
-      Promise.all([
-        animate(camera.position, targetPosition, { duration: 0.8 }),
-      ]).then(() => {
-        camera.lookAt(nodeVector)
-        setIsAnimating(false)
-        onTransitionComplete()
-      })
+      requestAnimationFrame(updateCamera)
     } else if (viewMode === 'globe' && selectedMedia === null) {
       // Zoom back out to initial position
       const initialPos = initialCameraPosition.current
 
       setIsAnimating(true)
 
-      // Disable OrbitControls during transition
-      if (controlsRef.current) {
-        controlsRef.current.enabled = false
+      const startTime = Date.now()
+      const startPos = camera.position.clone()
+      const duration = 800 // ms
+
+      const updateCamera = () => {
+        const elapsed = Date.now() - startTime
+        const progress = Math.min(elapsed / duration, 1)
+
+        // Easing function (ease-in-out)
+        const eased = progress < 0.5
+          ? 2 * progress * progress
+          : 1 - Math.pow(-2 * progress + 2, 2) / 2
+
+        camera.position.lerpVectors(startPos, initialPos, eased)
+        camera.lookAt(0, 0, 0)
+
+        if (progress < 1) {
+          requestAnimationFrame(updateCamera)
+        } else {
+          setIsAnimating(false)
+        }
       }
 
-      animate(camera.position, initialPos, { duration: 0.8 }).then(() => {
-        camera.lookAt(0, 0, 0)
-        setIsAnimating(false)
-        // Re-enable OrbitControls
-        if (controlsRef.current) {
-          controlsRef.current.enabled = true
-        }
-      })
+      requestAnimationFrame(updateCamera)
     }
   }, [viewMode, selectedMedia, camera, mediaPositions, onTransitionComplete])
 
@@ -185,9 +208,10 @@ export default function Scene({
         enableDamping
         dampingFactor={0.05}
         enableZoom={false}
-        autoRotate={viewMode === 'globe' && !isInteracting}
+        autoRotate={!isInteracting && viewMode === 'globe'}
         autoRotateSpeed={AUTO_ROTATE_SPEED}
         enablePan={false}
+        enabled={viewMode === 'globe'}
         touches={{
           ONE: 2, // TOUCH.ROTATE
           TWO: 0  // Disable two-finger gestures
