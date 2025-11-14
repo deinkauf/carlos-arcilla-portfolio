@@ -39,7 +39,6 @@ export default function Scene({
   const initialCameraPosition = useRef(new Vector3(0, 0, 5))
   const targetCameraPosition = useRef(new Vector3())
   const targetLookAt = useRef(new Vector3())
-  const [isAnimating, setIsAnimating] = useState(false)
 
 
   // Generate positions using Fibonacci spiral distribution (memoize to prevent re-renders)
@@ -76,8 +75,6 @@ export default function Scene({
       // Store initial camera position
       initialCameraPosition.current.copy(camera.position)
 
-      setIsAnimating(true)
-
       // Disable OrbitControls during transition
       if (controlsRef.current) {
         controlsRef.current.enabled = false
@@ -105,7 +102,6 @@ export default function Scene({
         if (progress < 1 && !animationCancelled) {
           rafId = requestAnimationFrame(updateCamera)
         } else {
-          setIsAnimating(false)
           onTransitionComplete()
         }
       }
@@ -114,8 +110,6 @@ export default function Scene({
     } else if (viewMode === 'globe' && selectedMedia === null) {
       // Zoom back out to initial position
       const initialPos = initialCameraPosition.current
-
-      setIsAnimating(true)
 
       // Disable OrbitControls during transition
       if (controlsRef.current) {
@@ -143,7 +137,6 @@ export default function Scene({
         if (progress < 1 && !animationCancelled) {
           rafId = requestAnimationFrame(updateCamera)
         } else {
-          setIsAnimating(false)
           // Re-enable OrbitControls and reset it
           if (controlsRef.current) {
             controlsRef.current.enabled = true
