@@ -120,8 +120,13 @@ export default function Scene({
 
       rafId = requestAnimationFrame(updateCamera)
     } else if (viewMode === 'globe' && selectedMedia === null && previousViewMode.current === 'focused') {
-      // Only zoom back out when returning from focused view, not during normal scatter/form
-      const initialPos = initialCameraPosition.current
+      // Zoom out to proper viewing distance while maintaining rotation angle
+      const startPos = camera.position.clone()
+
+      // Calculate target position: same direction but at proper distance (5 units from origin)
+      const properDistance = 5
+      const direction = startPos.clone().normalize()
+      const targetPos = direction.multiplyScalar(properDistance)
 
       // Disable OrbitControls during transition
       if (controlsRef.current) {
@@ -129,7 +134,6 @@ export default function Scene({
       }
 
       const startTime = Date.now()
-      const startPos = camera.position.clone()
       const duration = 800 // ms
 
       const updateCamera = () => {
@@ -143,7 +147,7 @@ export default function Scene({
           ? 2 * progress * progress
           : 1 - Math.pow(-2 * progress + 2, 2) / 2
 
-        camera.position.lerpVectors(startPos, initialPos, eased)
+        camera.position.lerpVectors(startPos, targetPos, eased)
         camera.lookAt(0, 0, 0)
 
         if (progress < 1 && !animationCancelled) {
