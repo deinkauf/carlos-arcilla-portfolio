@@ -22,6 +22,8 @@ interface SceneProps {
   highQualityUrl: string | null
   isMediaLoaded: boolean
   formationProgress: number
+  triggerZoomOut: boolean
+  onZoomOutComplete: () => void
   onInteractionChange?: (isInteracting: boolean) => void
 }
 
@@ -33,13 +35,14 @@ export default function Scene({
   highQualityUrl,
   isMediaLoaded,
   formationProgress,
+  triggerZoomOut,
+  onZoomOutComplete,
   onInteractionChange,
 }: SceneProps) {
   const { camera } = useThree()
   const controlsRef = useRef<OrbitControlsImpl>(null)
   const [isInteracting, setIsInteracting] = useState(false)
   const interactionTimeoutRef = useRef<number | undefined>()
-  const [shouldZoomOut, setShouldZoomOut] = useState(false)
 
   // Camera animation state
   const initialCameraPosition = useRef(new Vector3(0, 0, 5))
@@ -64,23 +67,10 @@ export default function Scene({
     }
   }, [viewMode])
 
-  // Set zoom out flag when entering focused view
-  useEffect(() => {
-    if (viewMode === 'focused') {
-      setShouldZoomOut(true)
-    }
-  }, [viewMode])
-
   // Handle camera zoom transition
   useEffect(() => {
     let animationCancelled = false
     let rafId: number | undefined
-
-    console.log('Camera effect:', {
-      viewMode,
-      selectedMedia: selectedMedia?.id || null,
-      shouldZoomOut
-    })
 
     if (viewMode === 'transitioning' && selectedMedia) {
       const mediaIndex = mediaItems.findIndex(item => item.id === selectedMedia.id)
@@ -132,9 +122,8 @@ export default function Scene({
       }
 
       rafId = requestAnimationFrame(updateCamera)
-    } else if (viewMode === 'globe' && selectedMedia === null && shouldZoomOut) {
+    } else if (triggerZoomOut) {
       // Zoom out to proper viewing distance while maintaining rotation angle
-      setShouldZoomOut(false) // Reset the flag
       const startPos = camera.position.clone()
 
       // Calculate target position: same direction but at proper distance (5 units from origin)
@@ -173,6 +162,7 @@ export default function Scene({
             controlsRef.current.target.set(0, 0, 0)
             controlsRef.current.update()
           }
+          onZoomOutComplete()
         }
       }
 
@@ -190,7 +180,7 @@ export default function Scene({
         controlsRef.current.enabled = true
       }
     }
-  }, [viewMode, selectedMedia, camera, onTransitionComplete, shouldZoomOut])
+  }, [viewMode, selectedMedia, camera, onTransitionComplete, triggerZoomOut, onZoomOutComplete])
 
   // Handle user interaction detection
   useEffect(() => {

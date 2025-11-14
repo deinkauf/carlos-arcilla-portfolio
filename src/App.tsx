@@ -105,7 +105,10 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [selectedMedia, focusedIndex])
 
+  const [triggerZoomOut, setTriggerZoomOut] = useState(false)
+
   const handleClose = () => {
+    setTriggerZoomOut(true)
     setViewMode('globe')
     setSelectedMedia(null)
   }
@@ -141,6 +144,8 @@ function App() {
           highQualityUrl={preloadState.highQualityUrl}
           isMediaLoaded={preloadState.isLoaded}
           formationProgress={formationProgress}
+          triggerZoomOut={triggerZoomOut}
+          onZoomOutComplete={() => setTriggerZoomOut(false)}
           onInteractionChange={(isInteracting) => {
             // Reset mouse idle timer when user interacts with OrbitControls
             if (isInteracting) {
