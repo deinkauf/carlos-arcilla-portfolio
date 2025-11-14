@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
 import Scene from './components/Scene'
 import FocusedControls from './components/FocusedControls'
@@ -11,9 +11,71 @@ function App() {
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null)
   const [focusedIndex, setFocusedIndex] = useState(0)
   const [viewMode, setViewMode] = useState<ViewMode>('globe')
+  const [formationProgress, setFormationProgress] = useState(0) // 0 = scattered, 1 = fully formed
 
   // Preload high-quality media when media is selected
   const preloadState = useMediaPreloader(selectedMedia)
+
+  // Mouse velocity tracking
+  const lastMousePos = useRef({ x: 0, y: 0 })
+  const lastMouseTime = useRef(Date.now())
+  const velocityAccumulator = useRef(0)
+
+  // Mouse velocity tracking for globe formation
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      const currentTime = Date.now()
+      const deltaTime = currentTime - lastMouseTime.current
+
+      // Calculate distance moved
+      const dx = e.clientX - lastMousePos.current.x
+      const dy = e.clientY - lastMousePos.current.y
+      const distance = Math.sqrt(dx * dx + dy * dy)
+
+      // Calculate velocity (pixels per millisecond)
+      const velocity = deltaTime > 0 ? distance / deltaTime : 0
+
+      // Accumulate velocity (higher velocity = faster formation)
+      // Velocity threshold: 0.5 px/ms is moderate movement
+      const velocityFactor = Math.min(velocity / 0.5, 2) // Cap at 2x speed
+      velocityAccumulator.current += velocityFactor * 0.01 // Accumulation rate
+
+      // Clamp accumulator between 0 and 1
+      velocityAccumulator.current = Math.min(velocityAccumulator.current, 1)
+
+      // Update formation progress
+      setFormationProgress(velocityAccumulator.current)
+
+      // Update tracking refs
+      lastMousePos.current = { x: e.clientX, y: e.clientY }
+      lastMouseTime.current = currentTime
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    return () => window.removeEventListener('mousemove', handleMouseMove)
+  }, [])
+
+  // Formation decay when mouse is idle
+  useEffect(() => {
+    const decayInterval = setInterval(() => {
+      // Only decay when in globe view (not during transitions or focused view)
+      if (viewMode === 'globe') {
+        const now = Date.now()
+        const timeSinceLastMove = now - lastMouseTime.current
+
+        // Grace period: 2 seconds of no movement before decay starts
+        const GRACE_PERIOD = 2000
+
+        if (timeSinceLastMove > GRACE_PERIOD) {
+          // Decay formation progress
+          velocityAccumulator.current = Math.max(velocityAccumulator.current - 0.005, 0)
+          setFormationProgress(velocityAccumulator.current)
+        }
+      }
+    }, 50) // Check every 50ms
+
+    return () => clearInterval(decayInterval)
+  }, [viewMode])
 
   // Keyboard navigation
   useEffect(() => {
@@ -78,6 +140,13 @@ function App() {
           onTransitionComplete={() => setViewMode('focused')}
           highQualityUrl={preloadState.highQualityUrl}
           isMediaLoaded={preloadState.isLoaded}
+          formationProgress={formationProgress}
+          onInteractionChange={(isInteracting) => {
+            // Reset mouse idle timer when user interacts with OrbitControls
+            if (isInteracting) {
+              lastMouseTime.current = Date.now()
+            }
+          }}
         />
       </Canvas>
 

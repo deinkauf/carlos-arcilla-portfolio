@@ -5,6 +5,7 @@ import { OrbitControls } from '@react-three/drei'
 import { Vector3 } from 'three'
 import MediaNode from './MediaNode'
 import { generateSpherePositions } from '../utils/sphericalPositions'
+import { generateScatterPositions } from '../utils/scatterPositions'
 import { mediaItems, MediaItem } from '../data/mediaData'
 
 const SPHERE_RADIUS = 2
@@ -20,6 +21,8 @@ interface SceneProps {
   onTransitionComplete: () => void
   highQualityUrl: string | null
   isMediaLoaded: boolean
+  formationProgress: number
+  onInteractionChange?: (isInteracting: boolean) => void
 }
 
 export default function Scene({
@@ -29,6 +32,8 @@ export default function Scene({
   onTransitionComplete,
   highQualityUrl,
   isMediaLoaded,
+  formationProgress,
+  onInteractionChange,
 }: SceneProps) {
   const { camera } = useThree()
   const controlsRef = useRef<OrbitControlsImpl>(null)
@@ -40,9 +45,20 @@ export default function Scene({
   const targetCameraPosition = useRef(new Vector3())
   const targetLookAt = useRef(new Vector3())
 
-
   // Generate positions using Fibonacci spiral distribution (memoize to prevent re-renders)
   const mediaPositions = useMemo(() => generateSpherePositions(MEDIA_COUNT, SPHERE_RADIUS), [])
+
+  // Generate scatter positions (regenerate when formation fully decays)
+  const [scatterPositions, setScatterPositions] = useState<[number, number, number][]>(() =>
+    generateScatterPositions(MEDIA_COUNT, SPHERE_RADIUS)
+  )
+
+  // Regenerate scatter positions when formation fully decays
+  useEffect(() => {
+    if (formationProgress === 0) {
+      setScatterPositions(generateScatterPositions(MEDIA_COUNT, SPHERE_RADIUS))
+    }
+  }, [formationProgress])
 
   // Ensure OrbitControls are enabled in globe mode
   useEffect(() => {
@@ -169,6 +185,7 @@ export default function Scene({
 
     const handleStart = () => {
       setIsInteracting(true)
+      if (onInteractionChange) onInteractionChange(true)
       if (interactionTimeoutRef.current) {
         clearTimeout(interactionTimeoutRef.current)
       }
@@ -178,6 +195,7 @@ export default function Scene({
       // Resume auto-rotation after 2 seconds of inactivity
       interactionTimeoutRef.current = setTimeout(() => {
         setIsInteracting(false)
+        if (onInteractionChange) onInteractionChange(false)
       }, 2000)
     }
 
@@ -191,7 +209,7 @@ export default function Scene({
         clearTimeout(interactionTimeoutRef.current)
       }
     }
-  }, [])
+  }, [onInteractionChange])
 
   return (
     <>
@@ -223,6 +241,8 @@ export default function Scene({
           <MediaNode
             key={mediaItem.id}
             position={position}
+            scatterPosition={scatterPositions[index]}
+            formationProgress={formationProgress}
             imageUrl={mediaItem.imageUrl}
             videoUrl={mediaItem.videoUrl}
             isVideo={mediaItem.type === 'video'}
@@ -240,7 +260,7 @@ export default function Scene({
         enableDamping
         dampingFactor={0.05}
         enableZoom={false}
-        autoRotate={!isInteracting && viewMode === 'globe'}
+        autoRotate={!isInteracting && viewMode === 'globe' && formationProgress >= 1}
         autoRotateSpeed={AUTO_ROTATE_SPEED}
         enablePan={false}
         touches={{
