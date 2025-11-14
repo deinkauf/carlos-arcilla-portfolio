@@ -189,7 +189,6 @@ export default function Scene({
     if (!controls) return
 
     const handleStart = () => {
-      setIsInteracting(true)
       if (onInteractionChange) onInteractionChange(true)
       if (interactionTimeoutRef.current) {
         clearTimeout(interactionTimeoutRef.current)
@@ -197,11 +196,9 @@ export default function Scene({
     }
 
     const handleEnd = () => {
-      // Resume auto-rotation after 2 seconds of inactivity
-      interactionTimeoutRef.current = setTimeout(() => {
-        setIsInteracting(false)
-        if (onInteractionChange) onInteractionChange(false)
-      }, 2000)
+      // Keep isInteracting false - don't stop auto-rotation
+      // Just reset mouse idle timer for formation decay
+      if (onInteractionChange) onInteractionChange(false)
     }
 
     controls.addEventListener('start', handleStart)
@@ -265,7 +262,7 @@ export default function Scene({
         enableDamping
         dampingFactor={0.05}
         enableZoom={false}
-        autoRotate={!isInteracting && viewMode === 'globe'}
+        autoRotate={viewMode === 'globe'}
         autoRotateSpeed={AUTO_ROTATE_SPEED}
         enablePan={false}
         touches={{
