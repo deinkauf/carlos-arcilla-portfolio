@@ -109,16 +109,23 @@ function MediaNodeContent({
   // Use video texture if available, otherwise use image texture
   const activeTexture = (isVideo && videoTexture) ? videoTexture : texture
 
-  // Smooth scale animation
+  // Smooth scale animation and orientation
   useFrame(() => {
     if (meshRef.current) {
-      const targetScale = hovered ? 1.3 : 1
+      // Scale up significantly in focused view, normal hover in globe view
+      let targetScale = 1
+      if (viewMode === 'focused' && isSelected) {
+        targetScale = 3 // Scale up 3x in focused view
+      } else if (hovered && viewMode === 'globe') {
+        targetScale = 1.3
+      }
+
       meshRef.current.scale.lerp(
         { x: targetScale, y: targetScale, z: targetScale } as any,
         0.1
       )
 
-      // Keep the plane oriented to face outward from sphere
+      // Keep the plane oriented to face outward from sphere (toward camera)
       meshRef.current.lookAt(
         position[0] * 2,
         position[1] * 2,
