@@ -4,6 +4,7 @@ import { useFrame, useLoader } from '@react-three/fiber'
 import { TextureLoader } from 'three'
 import { Suspense } from 'react'
 import * as THREE from 'three'
+import { createNoise3D } from 'simplex-noise'
 
 type ViewMode = 'globe' | 'transitioning' | 'focused'
 
@@ -63,6 +64,18 @@ function MediaNodeContent({
   const [hovered, setHovered] = useState(false)
   const [videoTexture, setVideoTexture] = useState<any>(null)
 
+  // Spring physics state
+  const velocity = useRef(new THREE.Vector3(0, 0, 0))
+
+  // Create unique noise function per node (using position as seed)
+  const noise3D = useMemo(() => {
+    const seed = position[0] + position[1] * 100 + position[2] * 10000
+    return createNoise3D(() => seed)
+  }, [position])
+
+  // Random time offset for async movement
+  const timeOffset = useMemo(() => Math.random() * 100, [])
+
   // Determine which URL to use for texture
   const textureUrl = (viewMode === 'focused' && isSelected && isMediaLoaded && highQualityUrl && !isVideo)
     ? highQualityUrl
@@ -113,18 +126,42 @@ function MediaNodeContent({
   // Use video texture if available, otherwise use image texture
   const activeTexture = (isVideo && videoTexture) ? videoTexture : texture
 
-  // Smooth scale animation, position interpolation, and orientation
-  useFrame(() => {
+  // Smooth scale animation, position interpolation, and orientation with spring physics
+  useFrame((state) => {
     if (meshRef.current) {
+      const time = state.clock.elapsedTime + timeOffset
+
       // Interpolate between scatter and sphere positions based on formation progress
-      const targetPos = new THREE.Vector3(
+      const baseTargetPos = new THREE.Vector3(
         scatterPosition[0] + (position[0] - scatterPosition[0]) * formationProgress,
         scatterPosition[1] + (position[1] - scatterPosition[1]) * formationProgress,
         scatterPosition[2] + (position[2] - scatterPosition[2]) * formationProgress
       )
 
-      // Smooth position transition
-      meshRef.current.position.lerp(targetPos, 0.1)
+      // Add Perlin noise for organic drift
+      const noiseScale = 0.3 // How much the noise affects position
+      const noiseSpeed = 0.2 // How fast the noise changes
+      const noiseX = noise3D(time * noiseSpeed, 0, 0) * noiseScale
+      const noiseY = noise3D(0, time * noiseSpeed, 0) * noiseScale
+      const noiseZ = noise3D(0, 0, time * noiseSpeed) * noiseScale
+
+      const targetPos = baseTargetPos.clone().add(new THREE.Vector3(noiseX, noiseY, noiseZ))
+
+      // Spring physics for position
+      const stiffness = 0.15 // Lower = more bouncy
+      const damping = 0.8 // Higher = less oscillation
+
+      // Calculate spring force
+      const currentPos = meshRef.current.position
+      const displacement = targetPos.clone().sub(currentPos)
+      const springForce = displacement.multiplyScalar(stiffness)
+
+      // Update velocity with spring force and damping
+      velocity.current.add(springForce)
+      velocity.current.multiplyScalar(damping)
+
+      // Update position with velocity
+      meshRef.current.position.add(velocity.current)
 
       // Scale up significantly in focused view, normal hover in globe view
       // Disable hover effects when formation is not complete
