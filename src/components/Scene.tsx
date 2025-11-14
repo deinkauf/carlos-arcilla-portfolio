@@ -28,6 +28,8 @@ export default function Scene({
   selectedMedia,
   viewMode,
   onTransitionComplete,
+  highQualityUrl,
+  isMediaLoaded,
 }: SceneProps) {
   const { camera } = useThree()
   const controlsRef = useRef<OrbitControlsImpl>(null)
@@ -64,11 +66,6 @@ export default function Scene({
 
       // Store initial camera position
       initialCameraPosition.current.copy(camera.position)
-
-      // Disable OrbitControls during transition
-      if (controlsRef.current) {
-        controlsRef.current.enabled = false
-      }
 
       setIsAnimating(true)
 
@@ -115,10 +112,6 @@ export default function Scene({
         }
       ).then(() => {
         setIsAnimating(false)
-        // Re-enable OrbitControls
-        if (controlsRef.current) {
-          controlsRef.current.enabled = true
-        }
         if (intervalId !== undefined) {
           clearInterval(intervalId)
         }
@@ -196,15 +189,19 @@ export default function Scene({
       {/* Render media nodes with image textures */}
       {mediaPositions.map((position, index) => {
         const isSelected = selectedMedia?.id === mediaItems[index].id
+        const mediaItem = mediaItems[index]
         return (
           <MediaNode
-            key={mediaItems[index].id}
+            key={mediaItem.id}
             position={position}
-            imageUrl={mediaItems[index].imageUrl}
-            isVideo={mediaItems[index].type === 'video'}
-            onMediaClick={() => onMediaClick(mediaItems[index])}
+            imageUrl={mediaItem.imageUrl}
+            videoUrl={mediaItem.videoUrl}
+            isVideo={mediaItem.type === 'video'}
+            onMediaClick={() => onMediaClick(mediaItem)}
             isSelected={isSelected}
             viewMode={viewMode}
+            highQualityUrl={isSelected ? highQualityUrl : null}
+            isMediaLoaded={isSelected ? isMediaLoaded : false}
           />
         )
       })}
@@ -214,10 +211,10 @@ export default function Scene({
         enableDamping
         dampingFactor={0.05}
         enableZoom={false}
-        autoRotate={!isInteracting && viewMode === 'globe'}
+        autoRotate={!isInteracting && viewMode === 'globe' && !isAnimating}
         autoRotateSpeed={AUTO_ROTATE_SPEED}
         enablePan={false}
-        enabled={viewMode === 'globe' && !isAnimating}
+        enabled={!isAnimating}
         touches={{
           ONE: 2, // TOUCH.ROTATE
           TWO: 0  // Disable two-finger gestures

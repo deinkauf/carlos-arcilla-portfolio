@@ -1,18 +1,22 @@
-import { useRef, useState, useMemo } from 'react'
+import { useRef, useState, useMemo, useEffect } from 'react'
 import { Mesh, Shape, ShapeGeometry } from 'three'
 import { useFrame, useLoader } from '@react-three/fiber'
 import { TextureLoader } from 'three'
 import { Suspense } from 'react'
+import * as THREE from 'three'
 
 type ViewMode = 'globe' | 'transitioning' | 'focused'
 
 interface MediaNodeProps {
   position: [number, number, number]
   imageUrl: string
+  videoUrl?: string
   isVideo: boolean
   onMediaClick: () => void
   isSelected?: boolean
   viewMode: ViewMode
+  highQualityUrl: string | null
+  isMediaLoaded: boolean
 }
 
 // Loading placeholder component
@@ -39,12 +43,56 @@ function LoadingPlaceholder({ position }: { position: [number, number, number] }
 }
 
 // Actual media node with texture
-function MediaNodeContent({ position, imageUrl, isVideo, onMediaClick, isSelected = false, viewMode }: MediaNodeProps) {
+function MediaNodeContent({
+  position,
+  imageUrl,
+  videoUrl,
+  isVideo,
+  onMediaClick,
+  isSelected = false,
+  viewMode,
+  highQualityUrl,
+  isMediaLoaded
+}: MediaNodeProps) {
   const meshRef = useRef<Mesh>(null)
+  const videoRef = useRef<HTMLVideoElement | null>(null)
   const [hovered, setHovered] = useState(false)
+  const [videoTexture, setVideoTexture] = useState<any>(null)
+
+  // Determine which URL to use for texture
+  const textureUrl = (viewMode === 'focused' && isSelected && isMediaLoaded && highQualityUrl && !isVideo)
+    ? highQualityUrl
+    : imageUrl
 
   // Load the image texture
-  const texture = useLoader(TextureLoader, imageUrl)
+  const texture = useLoader(TextureLoader, textureUrl)
+
+  // Handle video texture creation
+  useEffect(() => {
+    if (isVideo && viewMode === 'focused' && isSelected && videoUrl) {
+      const video = document.createElement('video')
+      video.src = videoUrl
+      video.crossOrigin = 'anonymous'
+      video.loop = true
+      video.muted = false
+      video.playsInline = true
+
+      video.addEventListener('loadeddata', () => {
+        const texture = new THREE.VideoTexture(video)
+        setVideoTexture(texture)
+        video.play()
+      })
+
+      videoRef.current = video
+
+      return () => {
+        video.pause()
+        video.src = ''
+        videoRef.current = null
+        setVideoTexture(null)
+      }
+    }
+  }, [isVideo, viewMode, isSelected, videoUrl])
 
   // Calculate opacity based on selection state and view mode
   const getOpacity = () => {
@@ -57,6 +105,9 @@ function MediaNodeContent({ position, imageUrl, isVideo, onMediaClick, isSelecte
     }
     return 0.3 // Dim non-selected nodes
   }
+
+  // Use video texture if available, otherwise use image texture
+  const activeTexture = (isVideo && videoTexture) ? videoTexture : texture
 
   // Smooth scale animation
   useFrame(() => {
@@ -105,14 +156,14 @@ function MediaNodeContent({ position, imageUrl, isVideo, onMediaClick, isSelecte
     >
       <planeGeometry args={[width, height]} />
       <meshStandardMaterial
-        map={texture}
+        map={activeTexture}
         side={2}
         opacity={getOpacity()}
         transparent
       />
 
-      {/* Play button overlay for videos */}
-      {isVideo && (
+      {/* Play button overlay for videos - only show in globe view */}
+      {isVideo && viewMode === 'globe' && (
         <group position={[0, 0, 0.01]}>
           <mesh>
             <circleGeometry args={[0.12, 32]} />

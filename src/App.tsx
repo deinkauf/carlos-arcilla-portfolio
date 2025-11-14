@@ -43,20 +43,6 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [selectedMedia, focusedIndex])
 
-  const handleNext = () => {
-    const nextIndex = (focusedIndex + 1) % mediaItems.length
-    setFocusedIndex(nextIndex)
-    setSelectedMedia(mediaItems[nextIndex])
-    setViewMode('transitioning')
-  }
-
-  const handlePrevious = () => {
-    const prevIndex = (focusedIndex - 1 + mediaItems.length) % mediaItems.length
-    setFocusedIndex(prevIndex)
-    setSelectedMedia(mediaItems[prevIndex])
-    setViewMode('transitioning')
-  }
-
   const handleClose = () => {
     setViewMode('globe')
     setSelectedMedia(null)
@@ -99,8 +85,6 @@ function App() {
       {viewMode === 'focused' && (
         <FocusedControls
           onClose={handleClose}
-          onNext={handleNext}
-          onPrevious={handlePrevious}
         />
       )}
     </div>
