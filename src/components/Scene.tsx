@@ -9,11 +9,15 @@ const SPHERE_RADIUS = 2
 const MEDIA_COUNT = 15
 const AUTO_ROTATE_SPEED = 0.5
 
+type ViewMode = 'globe' | 'transitioning' | 'focused'
+
 interface SceneProps {
   onMediaClick: (media: MediaItem) => void
+  viewMode: ViewMode
+  onTransitionComplete: () => void
 }
 
-export default function Scene({ onMediaClick }: SceneProps) {
+export default function Scene({ onMediaClick, viewMode, onTransitionComplete }: SceneProps) {
   const controlsRef = useRef<OrbitControlsImpl>(null)
   const [isInteracting, setIsInteracting] = useState(false)
   const interactionTimeoutRef = useRef<NodeJS.Timeout>()

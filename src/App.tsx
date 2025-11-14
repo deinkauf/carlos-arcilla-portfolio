@@ -4,9 +4,12 @@ import Scene from './components/Scene'
 import MediaViewer from './components/MediaViewer'
 import { MediaItem, mediaItems } from './data/mediaData'
 
+type ViewMode = 'globe' | 'transitioning' | 'focused'
+
 function App() {
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null)
   const [focusedIndex, setFocusedIndex] = useState(0)
+  const [viewMode, setViewMode] = useState<ViewMode>('globe')
 
   // Keyboard navigation
   useEffect(() => {
@@ -40,12 +43,19 @@ function App() {
     const nextIndex = (focusedIndex + 1) % mediaItems.length
     setFocusedIndex(nextIndex)
     setSelectedMedia(mediaItems[nextIndex])
+    setViewMode('transitioning')
   }
 
   const handlePrevious = () => {
     const prevIndex = (focusedIndex - 1 + mediaItems.length) % mediaItems.length
     setFocusedIndex(prevIndex)
     setSelectedMedia(mediaItems[prevIndex])
+    setViewMode('transitioning')
+  }
+
+  const handleClose = () => {
+    setViewMode('globe')
+    setSelectedMedia(null)
   }
 
   return (
@@ -71,14 +81,17 @@ function App() {
             setSelectedMedia(media)
             const index = mediaItems.findIndex(item => item.id === media.id)
             if (index !== -1) setFocusedIndex(index)
+            setViewMode('transitioning')
           }}
+          viewMode={viewMode}
+          onTransitionComplete={() => setViewMode('focused')}
         />
       </Canvas>
 
       {/* Media Viewer Modal */}
       <MediaViewer
         media={selectedMedia}
-        onClose={() => setSelectedMedia(null)}
+        onClose={handleClose}
         onNext={handleNext}
         onPrevious={handlePrevious}
       />
