@@ -1,32 +1,131 @@
-import { useRef, useState, useMemo } from 'react'
+import { useRef, useState, useMemo, useEffect } from 'react'
 import { Mesh, Shape, ShapeGeometry } from 'three'
 import { useFrame, useLoader } from '@react-three/fiber'
 import { TextureLoader } from 'three'
+import { Suspense } from 'react'
+import * as THREE from 'three'
+
+type ViewMode = 'globe' | 'transitioning' | 'focused'
 
 interface MediaNodeProps {
   position: [number, number, number]
   imageUrl: string
+  videoUrl?: string
   isVideo: boolean
   onMediaClick: () => void
+  isSelected?: boolean
+  viewMode: ViewMode
+  highQualityUrl: string | null
+  isMediaLoaded: boolean
 }
 
-export default function MediaNode({ position, imageUrl, isVideo, onMediaClick }: MediaNodeProps) {
+// Loading placeholder component
+function LoadingPlaceholder({ position }: { position: [number, number, number] }) {
   const meshRef = useRef<Mesh>(null)
-  const [hovered, setHovered] = useState(false)
 
-  // Load the image texture
-  const texture = useLoader(TextureLoader, imageUrl)
-
-  // Smooth scale animation
   useFrame(() => {
     if (meshRef.current) {
-      const targetScale = hovered ? 1.3 : 1
+      // Keep the plane oriented to face outward from sphere
+      meshRef.current.lookAt(
+        position[0] * 2,
+        position[1] * 2,
+        position[2] * 2
+      )
+    }
+  })
+
+  return (
+    <mesh ref={meshRef} position={position}>
+      <planeGeometry args={[0.6, 0.6]} />
+      <meshStandardMaterial color="#e0e0e0" opacity={0.6} transparent />
+    </mesh>
+  )
+}
+
+// Actual media node with texture
+function MediaNodeContent({
+  position,
+  imageUrl,
+  videoUrl,
+  isVideo,
+  onMediaClick,
+  isSelected = false,
+  viewMode,
+  highQualityUrl,
+  isMediaLoaded
+}: MediaNodeProps) {
+  const meshRef = useRef<Mesh>(null)
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const [hovered, setHovered] = useState(false)
+  const [videoTexture, setVideoTexture] = useState<any>(null)
+
+  // Determine which URL to use for texture
+  const textureUrl = (viewMode === 'focused' && isSelected && isMediaLoaded && highQualityUrl && !isVideo)
+    ? highQualityUrl
+    : imageUrl
+
+  // Load the image texture
+  const texture = useLoader(TextureLoader, textureUrl)
+
+  // Handle video texture creation
+  useEffect(() => {
+    if (isVideo && viewMode === 'focused' && isSelected && videoUrl) {
+      const video = document.createElement('video')
+      video.src = videoUrl
+      video.crossOrigin = 'anonymous'
+      video.loop = true
+      video.muted = false
+      video.playsInline = true
+
+      video.addEventListener('loadeddata', () => {
+        const texture = new THREE.VideoTexture(video)
+        setVideoTexture(texture)
+        video.play()
+      })
+
+      videoRef.current = video
+
+      return () => {
+        video.pause()
+        video.src = ''
+        videoRef.current = null
+        setVideoTexture(null)
+      }
+    }
+  }, [isVideo, viewMode, isSelected, videoUrl])
+
+  // Calculate opacity based on selection state and view mode
+  const getOpacity = () => {
+    if (viewMode === 'globe') {
+      return hovered ? 1 : 0.95
+    }
+    // During transition or focused, dim non-selected nodes
+    if (isSelected) {
+      return 1
+    }
+    return 0.3 // Dim non-selected nodes
+  }
+
+  // Use video texture if available, otherwise use image texture
+  const activeTexture = (isVideo && videoTexture) ? videoTexture : texture
+
+  // Smooth scale animation and orientation
+  useFrame(() => {
+    if (meshRef.current) {
+      // Scale up significantly in focused view, normal hover in globe view
+      let targetScale = 1
+      if (viewMode === 'focused' && isSelected) {
+        targetScale = 3 // Scale up 3x in focused view
+      } else if (hovered && viewMode === 'globe') {
+        targetScale = 1.3
+      }
+
       meshRef.current.scale.lerp(
         { x: targetScale, y: targetScale, z: targetScale } as any,
         0.1
       )
 
-      // Keep the plane oriented to face outward from sphere
+      // Keep the plane oriented to face outward from sphere (toward camera)
       meshRef.current.lookAt(
         position[0] * 2,
         position[1] * 2,
@@ -64,14 +163,14 @@ export default function MediaNode({ position, imageUrl, isVideo, onMediaClick }:
     >
       <planeGeometry args={[width, height]} />
       <meshStandardMaterial
-        map={texture}
+        map={activeTexture}
         side={2}
-        opacity={hovered ? 1 : 0.95}
+        opacity={getOpacity()}
         transparent
       />
 
-      {/* Play button overlay for videos */}
-      {isVideo && (
+      {/* Play button overlay for videos - only show in globe view */}
+      {isVideo && viewMode === 'globe' && (
         <group position={[0, 0, 0.01]}>
           <mesh>
             <circleGeometry args={[0.12, 32]} />
@@ -88,5 +187,14 @@ export default function MediaNode({ position, imageUrl, isVideo, onMediaClick }:
         </group>
       )}
     </mesh>
+  )
+}
+
+// Main export with Suspense wrapper
+export default function MediaNode(props: MediaNodeProps) {
+  return (
+    <Suspense fallback={<LoadingPlaceholder position={props.position} />}>
+      <MediaNodeContent {...props} />
+    </Suspense>
   )
 }
