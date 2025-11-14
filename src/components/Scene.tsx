@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState, useEffect, useMemo } from 'react'
 import { useThree } from '@react-three/fiber'
 import { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { OrbitControls } from '@react-three/drei'
@@ -64,8 +64,17 @@ export default function Scene({
     }
   }, [viewMode, isInteracting])
 
-  // Generate positions using Fibonacci spiral distribution
-  const mediaPositions = generateSpherePositions(MEDIA_COUNT, SPHERE_RADIUS)
+  // Generate positions using Fibonacci spiral distribution (memoize to prevent re-renders)
+  const mediaPositions = useMemo(() => generateSpherePositions(MEDIA_COUNT, SPHERE_RADIUS), [])
+
+  // Ensure OrbitControls are enabled in globe mode
+  useEffect(() => {
+    if (controlsRef.current && viewMode === 'globe') {
+      console.log('Ensuring OrbitControls enabled in globe mode')
+      controlsRef.current.enabled = true
+      controlsRef.current.update()
+    }
+  }, [viewMode])
 
   // Handle camera zoom transition
   useEffect(() => {
@@ -183,7 +192,7 @@ export default function Scene({
         controlsRef.current.enabled = true
       }
     }
-  }, [viewMode, selectedMedia, camera, mediaPositions, onTransitionComplete])
+  }, [viewMode, selectedMedia, camera, onTransitionComplete])
 
   // Handle user interaction detection
   useEffect(() => {
