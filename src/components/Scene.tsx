@@ -13,11 +13,21 @@ type ViewMode = 'globe' | 'transitioning' | 'focused'
 
 interface SceneProps {
   onMediaClick: (media: MediaItem) => void
+  selectedMedia: MediaItem | null
   viewMode: ViewMode
   onTransitionComplete: () => void
+  highQualityUrl: string | null
+  isMediaLoaded: boolean
 }
 
-export default function Scene({ onMediaClick, viewMode, onTransitionComplete }: SceneProps) {
+export default function Scene({
+  onMediaClick,
+  selectedMedia,
+  viewMode,
+  onTransitionComplete,
+  highQualityUrl,
+  isMediaLoaded
+}: SceneProps) {
   const controlsRef = useRef<OrbitControlsImpl>(null)
   const [isInteracting, setIsInteracting] = useState(false)
   const interactionTimeoutRef = useRef<NodeJS.Timeout>()

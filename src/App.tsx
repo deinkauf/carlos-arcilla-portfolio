@@ -3,6 +3,7 @@ import { Canvas } from '@react-three/fiber'
 import Scene from './components/Scene'
 import MediaViewer from './components/MediaViewer'
 import { MediaItem, mediaItems } from './data/mediaData'
+import { useMediaPreloader } from './hooks/useMediaPreloader'
 
 type ViewMode = 'globe' | 'transitioning' | 'focused'
 
@@ -10,6 +11,9 @@ function App() {
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null)
   const [focusedIndex, setFocusedIndex] = useState(0)
   const [viewMode, setViewMode] = useState<ViewMode>('globe')
+
+  // Preload high-quality media when media is selected
+  const preloadState = useMediaPreloader(selectedMedia)
 
   // Keyboard navigation
   useEffect(() => {
@@ -83,8 +87,11 @@ function App() {
             if (index !== -1) setFocusedIndex(index)
             setViewMode('transitioning')
           }}
+          selectedMedia={selectedMedia}
           viewMode={viewMode}
           onTransitionComplete={() => setViewMode('focused')}
+          highQualityUrl={preloadState.highQualityUrl}
+          isMediaLoaded={preloadState.isLoaded}
         />
       </Canvas>
 
