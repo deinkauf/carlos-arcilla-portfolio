@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Canvas } from '@react-three/fiber'
 import Scene from './components/Scene'
-import MediaViewer from './components/MediaViewer'
+import FocusedControls from './components/FocusedControls'
 import { MediaItem, mediaItems } from './data/mediaData'
 import { useMediaPreloader } from './hooks/useMediaPreloader'
 
@@ -95,13 +95,14 @@ function App() {
         />
       </Canvas>
 
-      {/* Media Viewer Modal */}
-      <MediaViewer
-        media={selectedMedia}
-        onClose={handleClose}
-        onNext={handleNext}
-        onPrevious={handlePrevious}
-      />
+      {/* Focused view controls - Only show in focused mode */}
+      {viewMode === 'focused' && (
+        <FocusedControls
+          onClose={handleClose}
+          onNext={handleNext}
+          onPrevious={handlePrevious}
+        />
+      )}
     </div>
   )
 }
