@@ -39,12 +39,12 @@ export default function Scene({
   const controlsRef = useRef<OrbitControlsImpl>(null)
   const [isInteracting, setIsInteracting] = useState(false)
   const interactionTimeoutRef = useRef<number | undefined>()
+  const [shouldZoomOut, setShouldZoomOut] = useState(false)
 
   // Camera animation state
   const initialCameraPosition = useRef(new Vector3(0, 0, 5))
   const targetCameraPosition = useRef(new Vector3())
   const targetLookAt = useRef(new Vector3())
-  const previousViewMode = useRef<ViewMode>(viewMode)
 
   // Generate positions using Fibonacci spiral distribution (memoize to prevent re-renders)
   const mediaPositions = useMemo(() => generateSpherePositions(MEDIA_COUNT, SPHERE_RADIUS), [])
@@ -64,16 +64,23 @@ export default function Scene({
     }
   }, [viewMode])
 
+  // Set zoom out flag when entering focused view
+  useEffect(() => {
+    if (viewMode === 'focused') {
+      setShouldZoomOut(true)
+    }
+  }, [viewMode])
+
   // Handle camera zoom transition
   useEffect(() => {
     let animationCancelled = false
     let rafId: number | undefined
 
-    // Check if we're returning from focused/transitioning view
-    const isReturningFromFocusedView =
-      viewMode === 'globe' &&
-      selectedMedia === null &&
-      (previousViewMode.current === 'focused' || previousViewMode.current === 'transitioning')
+    console.log('Camera effect:', {
+      viewMode,
+      selectedMedia: selectedMedia?.id || null,
+      shouldZoomOut
+    })
 
     if (viewMode === 'transitioning' && selectedMedia) {
       const mediaIndex = mediaItems.findIndex(item => item.id === selectedMedia.id)
@@ -125,8 +132,9 @@ export default function Scene({
       }
 
       rafId = requestAnimationFrame(updateCamera)
-    } else if (isReturningFromFocusedView) {
+    } else if (viewMode === 'globe' && selectedMedia === null && shouldZoomOut) {
       // Zoom out to proper viewing distance while maintaining rotation angle
+      setShouldZoomOut(false) // Reset the flag
       const startPos = camera.position.clone()
 
       // Calculate target position: same direction but at proper distance (5 units from origin)
@@ -181,10 +189,8 @@ export default function Scene({
       if (controlsRef.current && viewMode === 'globe') {
         controlsRef.current.enabled = true
       }
-      // Update previous view mode after cleanup
-      previousViewMode.current = viewMode
     }
-  }, [viewMode, selectedMedia, camera, onTransitionComplete])
+  }, [viewMode, selectedMedia, camera, onTransitionComplete, shouldZoomOut])
 
   // Handle user interaction detection
   useEffect(() => {
