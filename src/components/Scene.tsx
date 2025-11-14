@@ -48,17 +48,31 @@ export default function Scene({
   // Generate positions using Fibonacci spiral distribution (memoize to prevent re-renders)
   const mediaPositions = useMemo(() => generateSpherePositions(MEDIA_COUNT, SPHERE_RADIUS), [])
 
-  // Generate scatter positions (regenerate when formation fully decays)
+  // Generate scatter positions - use two sets for smooth transitions
   const [scatterPositions, setScatterPositions] = useState<[number, number, number][]>(() =>
     generateScatterPositions(MEDIA_COUNT, SPHERE_RADIUS)
   )
+  const [nextScatterPositions, setNextScatterPositions] = useState<[number, number, number][]>(() =>
+    generateScatterPositions(MEDIA_COUNT, SPHERE_RADIUS)
+  )
+  const hasGeneratedNext = useRef(false)
 
-  // Regenerate scatter positions when formation fully decays
+  // Generate next scatter positions early (when formation drops below 10%)
+  // and swap to them when fully decayed
   useEffect(() => {
-    if (formationProgress === 0) {
-      setScatterPositions(generateScatterPositions(MEDIA_COUNT, SPHERE_RADIUS))
+    if (formationProgress < 0.1 && !hasGeneratedNext.current) {
+      // Generate next positions while still transitioning down
+      setNextScatterPositions(generateScatterPositions(MEDIA_COUNT, SPHERE_RADIUS))
+      hasGeneratedNext.current = true
+    } else if (formationProgress === 0 && hasGeneratedNext.current) {
+      // Swap to next positions once fully scattered
+      setScatterPositions(nextScatterPositions)
+      hasGeneratedNext.current = false
+    } else if (formationProgress > 0.5) {
+      // Reset flag when globe is forming
+      hasGeneratedNext.current = false
     }
-  }, [formationProgress])
+  }, [formationProgress, nextScatterPositions])
 
   // Ensure OrbitControls are enabled in globe mode
   useEffect(() => {
