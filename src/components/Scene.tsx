@@ -41,28 +41,6 @@ export default function Scene({
   const targetLookAt = useRef(new Vector3())
   const [isAnimating, setIsAnimating] = useState(false)
 
-  // Debug logging
-  useEffect(() => {
-    console.log('Scene state:', {
-      viewMode,
-      isAnimating,
-      isInteracting,
-      selectedMedia: selectedMedia?.id,
-      controlsEnabled: viewMode === 'globe',
-      autoRotate: !isInteracting && viewMode === 'globe'
-    })
-  }, [viewMode, isAnimating, isInteracting, selectedMedia])
-
-  // Log controls state
-  useEffect(() => {
-    if (controlsRef.current) {
-      console.log('OrbitControls state:', {
-        enabled: controlsRef.current.enabled,
-        autoRotate: controlsRef.current.autoRotate,
-        enableDamping: controlsRef.current.enableDamping
-      })
-    }
-  }, [viewMode, isInteracting])
 
   // Generate positions using Fibonacci spiral distribution (memoize to prevent re-renders)
   const mediaPositions = useMemo(() => generateSpherePositions(MEDIA_COUNT, SPHERE_RADIUS), [])
@@ -70,7 +48,6 @@ export default function Scene({
   // Ensure OrbitControls are enabled in globe mode
   useEffect(() => {
     if (controlsRef.current && viewMode === 'globe') {
-      console.log('Ensuring OrbitControls enabled in globe mode')
       controlsRef.current.enabled = true
       controlsRef.current.update()
     }
@@ -78,8 +55,6 @@ export default function Scene({
 
   // Handle camera zoom transition
   useEffect(() => {
-    console.log('Camera animation effect triggered:', { viewMode, selectedMediaId: selectedMedia?.id })
-
     let animationCancelled = false
     let rafId: number | undefined
 
