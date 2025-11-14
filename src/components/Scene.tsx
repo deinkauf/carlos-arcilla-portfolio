@@ -45,6 +45,8 @@ export default function Scene({
 
   // Handle camera zoom transition
   useEffect(() => {
+    let intervalId: number | undefined
+
     if (viewMode === 'transitioning' && selectedMedia) {
       const mediaIndex = mediaItems.findIndex(item => item.id === selectedMedia.id)
       if (mediaIndex === -1) return
@@ -83,6 +85,9 @@ export default function Scene({
       ).then(() => {
         setIsAnimating(false)
         onTransitionComplete()
+        if (intervalId !== undefined) {
+          clearInterval(intervalId)
+        }
       })
 
       // Update camera position in animation loop
@@ -90,9 +95,8 @@ export default function Scene({
         camera.position.set(cameraPos.x, cameraPos.y, cameraPos.z)
         camera.lookAt(nodeVector)
       }
-      const intervalId = setInterval(updateLoop, 16) // ~60fps
-      setTimeout(() => clearInterval(intervalId), 800)
-    } else if (viewMode === 'globe') {
+      intervalId = setInterval(updateLoop, 16) as unknown as number // ~60fps
+    } else if (viewMode === 'globe' && selectedMedia === null) {
       // Zoom back out to initial position
       const cameraPos = { x: camera.position.x, y: camera.position.y, z: camera.position.z }
       const initialPos = {
@@ -115,6 +119,9 @@ export default function Scene({
         if (controlsRef.current) {
           controlsRef.current.enabled = true
         }
+        if (intervalId !== undefined) {
+          clearInterval(intervalId)
+        }
       })
 
       // Update camera position in animation loop
@@ -122,8 +129,14 @@ export default function Scene({
         camera.position.set(cameraPos.x, cameraPos.y, cameraPos.z)
         camera.lookAt(0, 0, 0)
       }
-      const intervalId = setInterval(updateLoop, 16) // ~60fps
-      setTimeout(() => clearInterval(intervalId), 800)
+      intervalId = setInterval(updateLoop, 16) as unknown as number // ~60fps
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (intervalId !== undefined) {
+        clearInterval(intervalId)
+      }
     }
   }, [viewMode, selectedMedia, camera, mediaPositions, onTransitionComplete])
 
