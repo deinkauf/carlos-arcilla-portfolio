@@ -138,30 +138,36 @@ function MediaNodeContent({
         scatterPosition[2] + (position[2] - scatterPosition[2]) * formationProgress
       )
 
-      // Add Perlin noise for organic drift
-      const noiseScale = 0.3 // How much the noise affects position
-      const noiseSpeed = 0.2 // How fast the noise changes
+      // Add Perlin noise for organic drift (only when not fully formed)
+      const noiseScale = 0.3 * (1 - formationProgress) // Reduce drift as globe forms
+      const noiseSpeed = 0.2
       const noiseX = noise3D(time * noiseSpeed, 0, 0) * noiseScale
       const noiseY = noise3D(0, time * noiseSpeed, 0) * noiseScale
       const noiseZ = noise3D(0, 0, time * noiseSpeed) * noiseScale
 
       const targetPos = baseTargetPos.clone().add(new THREE.Vector3(noiseX, noiseY, noiseZ))
 
-      // Spring physics for position
-      const stiffness = 0.15 // Lower = more bouncy
-      const damping = 0.8 // Higher = less oscillation
+      // Spring physics for position (disable when fully formed)
+      if (formationProgress < 0.99) {
+        const stiffness = 0.15 // Lower = more bouncy
+        const damping = 0.8 // Higher = less oscillation
 
-      // Calculate spring force
-      const currentPos = meshRef.current.position
-      const displacement = targetPos.clone().sub(currentPos)
-      const springForce = displacement.multiplyScalar(stiffness)
+        // Calculate spring force
+        const currentPos = meshRef.current.position
+        const displacement = targetPos.clone().sub(currentPos)
+        const springForce = displacement.multiplyScalar(stiffness)
 
-      // Update velocity with spring force and damping
-      velocity.current.add(springForce)
-      velocity.current.multiplyScalar(damping)
+        // Update velocity with spring force and damping
+        velocity.current.add(springForce)
+        velocity.current.multiplyScalar(damping)
 
-      // Update position with velocity
-      meshRef.current.position.add(velocity.current)
+        // Update position with velocity
+        meshRef.current.position.add(velocity.current)
+      } else {
+        // When fully formed, use simple lerp for stable, uniform positioning
+        meshRef.current.position.lerp(targetPos, 0.1)
+        velocity.current.set(0, 0, 0) // Reset velocity
+      }
 
       // Scale up significantly in focused view, normal hover in globe view
       // Disable hover effects when formation is not complete
