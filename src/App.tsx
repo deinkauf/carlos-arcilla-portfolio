@@ -38,7 +38,7 @@ function App() {
       // Accumulate velocity (higher velocity = faster formation)
       // Velocity threshold: 0.5 px/ms is moderate movement
       const velocityFactor = Math.min(velocity / 0.5, 2) // Cap at 2x speed
-      velocityAccumulator.current += velocityFactor * 0.01 // Accumulation rate
+      velocityAccumulator.current += velocityFactor * 0.005 // Accumulation rate (reduced from 0.01)
 
       // Clamp accumulator between 0 and 1
       velocityAccumulator.current = Math.min(velocityAccumulator.current, 1)
@@ -63,12 +63,12 @@ function App() {
         const now = Date.now()
         const timeSinceLastMove = now - lastMouseTime.current
 
-        // Grace period: 2 seconds of no movement before decay starts
-        const GRACE_PERIOD = 2000
+        // Grace period: 5 seconds of no movement before decay starts
+        const GRACE_PERIOD = 5000
 
         if (timeSinceLastMove > GRACE_PERIOD) {
-          // Decay formation progress
-          velocityAccumulator.current = Math.max(velocityAccumulator.current - 0.005, 0)
+          // Decay formation progress (faster decay)
+          velocityAccumulator.current = Math.max(velocityAccumulator.current - 0.01, 0)
           setFormationProgress(velocityAccumulator.current)
         }
       }
