@@ -69,6 +69,12 @@ export default function Scene({
     let animationCancelled = false
     let rafId: number | undefined
 
+    // Check if we're returning from focused/transitioning view
+    const isReturningFromFocusedView =
+      viewMode === 'globe' &&
+      selectedMedia === null &&
+      (previousViewMode.current === 'focused' || previousViewMode.current === 'transitioning')
+
     if (viewMode === 'transitioning' && selectedMedia) {
       const mediaIndex = mediaItems.findIndex(item => item.id === selectedMedia.id)
       if (mediaIndex === -1) return
@@ -119,7 +125,7 @@ export default function Scene({
       }
 
       rafId = requestAnimationFrame(updateCamera)
-    } else if (viewMode === 'globe' && selectedMedia === null && previousViewMode.current === 'focused') {
+    } else if (isReturningFromFocusedView) {
       // Zoom out to proper viewing distance while maintaining rotation angle
       const startPos = camera.position.clone()
 
@@ -165,9 +171,6 @@ export default function Scene({
       rafId = requestAnimationFrame(updateCamera)
     }
 
-    // Track previous view mode
-    previousViewMode.current = viewMode
-
     // Cleanup function to cancel animations
     return () => {
       animationCancelled = true
@@ -178,6 +181,8 @@ export default function Scene({
       if (controlsRef.current && viewMode === 'globe') {
         controlsRef.current.enabled = true
       }
+      // Update previous view mode after cleanup
+      previousViewMode.current = viewMode
     }
   }, [viewMode, selectedMedia, camera, onTransitionComplete])
 
