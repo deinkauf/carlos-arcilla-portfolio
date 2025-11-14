@@ -10,14 +10,15 @@ export function generateScatterPositions(
   const positions: [number, number, number][] = []
 
   // Define bounding box relative to sphere radius
-  // Scatter area is 3x the sphere radius in each dimension
-  const boundingSize = sphereRadius * 3
+  // Keep scatter area smaller (1.5x) to ensure nodes stay in camera view
+  const boundingSize = sphereRadius * 1.5
 
   for (let i = 0; i < count; i++) {
-    // Generate random position in 3D space
+    // Generate random position in 3D space within visible bounds
     const x = (Math.random() - 0.5) * boundingSize * 2
     const y = (Math.random() - 0.5) * boundingSize * 2
-    const z = (Math.random() - 0.5) * boundingSize * 2
+    // Keep Z closer to camera (less depth variation)
+    const z = (Math.random() - 0.5) * boundingSize * 1.5
 
     positions.push([x, y, z])
   }

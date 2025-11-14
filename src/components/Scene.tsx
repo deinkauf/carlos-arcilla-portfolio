@@ -260,7 +260,7 @@ export default function Scene({
         enableDamping
         dampingFactor={0.05}
         enableZoom={false}
-        autoRotate={!isInteracting && viewMode === 'globe' && formationProgress >= 1}
+        autoRotate={!isInteracting && viewMode === 'globe'}
         autoRotateSpeed={AUTO_ROTATE_SPEED}
         enablePan={false}
         touches={{
