@@ -21,24 +21,19 @@ function App() {
   const lastMouseTime = useRef(Date.now())
   const velocityAccumulator = useRef(0)
 
-  // Mouse velocity tracking for globe formation
+  // Mouse distance tracking for globe formation
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       const currentTime = Date.now()
-      const deltaTime = currentTime - lastMouseTime.current
 
       // Calculate distance moved
       const dx = e.clientX - lastMousePos.current.x
       const dy = e.clientY - lastMousePos.current.y
       const distance = Math.sqrt(dx * dx + dy * dy)
 
-      // Calculate velocity (pixels per millisecond)
-      const velocity = deltaTime > 0 ? distance / deltaTime : 0
-
-      // Accumulate velocity (higher velocity = faster formation)
-      // Velocity threshold: 0.5 px/ms is moderate movement
-      const velocityFactor = Math.min(velocity / 0.5, 2) // Cap at 2x speed
-      velocityAccumulator.current += velocityFactor * 0.005 // Accumulation rate (reduced from 0.01)
+      // Accumulate distance traveled (total pixels moved)
+      // Each 1000 pixels moved = 0.1 formation progress (10000 pixels total for full formation)
+      velocityAccumulator.current += distance / 10000
 
       // Clamp accumulator between 0 and 1
       velocityAccumulator.current = Math.min(velocityAccumulator.current, 1)
