@@ -9,6 +9,8 @@ type ViewMode = 'globe' | 'transitioning' | 'focused'
 
 interface MediaNodeProps {
   position: [number, number, number]
+  scatterPosition: [number, number, number]
+  formationProgress: number
   imageUrl: string
   videoUrl?: string
   isVideo: boolean
@@ -45,6 +47,8 @@ function LoadingPlaceholder({ position }: { position: [number, number, number] }
 // Actual media node with texture
 function MediaNodeContent({
   position,
+  scatterPosition,
+  formationProgress,
   imageUrl,
   videoUrl,
   isVideo,
@@ -109,14 +113,25 @@ function MediaNodeContent({
   // Use video texture if available, otherwise use image texture
   const activeTexture = (isVideo && videoTexture) ? videoTexture : texture
 
-  // Smooth scale animation and orientation
+  // Smooth scale animation, position interpolation, and orientation
   useFrame(() => {
     if (meshRef.current) {
+      // Interpolate between scatter and sphere positions based on formation progress
+      const targetPos = new THREE.Vector3(
+        scatterPosition[0] + (position[0] - scatterPosition[0]) * formationProgress,
+        scatterPosition[1] + (position[1] - scatterPosition[1]) * formationProgress,
+        scatterPosition[2] + (position[2] - scatterPosition[2]) * formationProgress
+      )
+
+      // Smooth position transition
+      meshRef.current.position.lerp(targetPos, 0.1)
+
       // Scale up significantly in focused view, normal hover in globe view
+      // Disable hover effects when formation is not complete
       let targetScale = 1
       if (viewMode === 'focused' && isSelected) {
         targetScale = 3 // Scale up 3x in focused view
-      } else if (hovered && viewMode === 'globe') {
+      } else if (hovered && viewMode === 'globe' && formationProgress > 0.95) {
         targetScale = 1.3
       }
 
@@ -126,6 +141,7 @@ function MediaNodeContent({
       )
 
       // Keep the plane oriented to face outward from sphere (toward camera)
+      // Use the final sphere position for orientation, not current position
       meshRef.current.lookAt(
         position[0] * 2,
         position[1] * 2,
@@ -153,12 +169,15 @@ function MediaNodeContent({
   return (
     <mesh
       ref={meshRef}
-      position={position}
-      onPointerOver={() => setHovered(true)}
+      position={scatterPosition}
+      onPointerOver={() => formationProgress > 0.95 && setHovered(true)}
       onPointerOut={() => setHovered(false)}
       onClick={(e) => {
-        e.stopPropagation()
-        onMediaClick()
+        // Only allow clicks when globe is fully formed
+        if (formationProgress >= 1) {
+          e.stopPropagation()
+          onMediaClick()
+        }
       }}
     >
       <planeGeometry args={[width, height]} />

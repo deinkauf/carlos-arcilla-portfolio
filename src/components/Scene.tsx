@@ -1,10 +1,11 @@
-import { useRef, useState, useEffect, useMemo } from 'react'
+import { useRef, useEffect, useMemo } from 'react'
 import { useThree } from '@react-three/fiber'
 import { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { OrbitControls } from '@react-three/drei'
 import { Vector3 } from 'three'
 import MediaNode from './MediaNode'
 import { generateSpherePositions } from '../utils/sphericalPositions'
+import { generateScatterPositions } from '../utils/scatterPositions'
 import { mediaItems, MediaItem } from '../data/mediaData'
 
 const SPHERE_RADIUS = 2
@@ -20,6 +21,10 @@ interface SceneProps {
   onTransitionComplete: () => void
   highQualityUrl: string | null
   isMediaLoaded: boolean
+  formationProgress: number
+  triggerZoomOut: boolean
+  onZoomOutComplete: () => void
+  onInteractionChange?: (isInteracting: boolean) => void
 }
 
 export default function Scene({
@@ -29,10 +34,13 @@ export default function Scene({
   onTransitionComplete,
   highQualityUrl,
   isMediaLoaded,
+  formationProgress,
+  triggerZoomOut,
+  onZoomOutComplete,
+  onInteractionChange,
 }: SceneProps) {
   const { camera } = useThree()
   const controlsRef = useRef<OrbitControlsImpl>(null)
-  const [isInteracting, setIsInteracting] = useState(false)
   const interactionTimeoutRef = useRef<number | undefined>()
 
   // Camera animation state
@@ -40,9 +48,15 @@ export default function Scene({
   const targetCameraPosition = useRef(new Vector3())
   const targetLookAt = useRef(new Vector3())
 
-
   // Generate positions using Fibonacci spiral distribution (memoize to prevent re-renders)
   const mediaPositions = useMemo(() => generateSpherePositions(MEDIA_COUNT, SPHERE_RADIUS), [])
+
+  // Generate scatter positions once and keep them constant
+  // No regeneration - nodes always return to the same scatter positions
+  const scatterPositions = useMemo(() =>
+    generateScatterPositions(MEDIA_COUNT, SPHERE_RADIUS),
+    []
+  )
 
   // Ensure OrbitControls are enabled in globe mode
   useEffect(() => {
@@ -107,9 +121,14 @@ export default function Scene({
       }
 
       rafId = requestAnimationFrame(updateCamera)
-    } else if (viewMode === 'globe' && selectedMedia === null) {
-      // Zoom back out to initial position
-      const initialPos = initialCameraPosition.current
+    } else if (triggerZoomOut) {
+      // Zoom out to proper viewing distance while maintaining rotation angle
+      const startPos = camera.position.clone()
+
+      // Calculate target position: same direction but at proper distance (5 units from origin)
+      const properDistance = 5
+      const direction = startPos.clone().normalize()
+      const targetPos = direction.multiplyScalar(properDistance)
 
       // Disable OrbitControls during transition
       if (controlsRef.current) {
@@ -117,7 +136,6 @@ export default function Scene({
       }
 
       const startTime = Date.now()
-      const startPos = camera.position.clone()
       const duration = 800 // ms
 
       const updateCamera = () => {
@@ -131,7 +149,7 @@ export default function Scene({
           ? 2 * progress * progress
           : 1 - Math.pow(-2 * progress + 2, 2) / 2
 
-        camera.position.lerpVectors(startPos, initialPos, eased)
+        camera.position.lerpVectors(startPos, targetPos, eased)
         camera.lookAt(0, 0, 0)
 
         if (progress < 1 && !animationCancelled) {
@@ -143,6 +161,7 @@ export default function Scene({
             controlsRef.current.target.set(0, 0, 0)
             controlsRef.current.update()
           }
+          onZoomOutComplete()
         }
       }
 
@@ -160,7 +179,7 @@ export default function Scene({
         controlsRef.current.enabled = true
       }
     }
-  }, [viewMode, selectedMedia, camera, onTransitionComplete])
+  }, [viewMode, selectedMedia, camera, onTransitionComplete, triggerZoomOut, onZoomOutComplete])
 
   // Handle user interaction detection
   useEffect(() => {
@@ -168,17 +187,16 @@ export default function Scene({
     if (!controls) return
 
     const handleStart = () => {
-      setIsInteracting(true)
+      if (onInteractionChange) onInteractionChange(true)
       if (interactionTimeoutRef.current) {
         clearTimeout(interactionTimeoutRef.current)
       }
     }
 
     const handleEnd = () => {
-      // Resume auto-rotation after 2 seconds of inactivity
-      interactionTimeoutRef.current = setTimeout(() => {
-        setIsInteracting(false)
-      }, 2000)
+      // Keep isInteracting false - don't stop auto-rotation
+      // Just reset mouse idle timer for formation decay
+      if (onInteractionChange) onInteractionChange(false)
     }
 
     controls.addEventListener('start', handleStart)
@@ -191,7 +209,7 @@ export default function Scene({
         clearTimeout(interactionTimeoutRef.current)
       }
     }
-  }, [])
+  }, [onInteractionChange])
 
   return (
     <>
@@ -223,6 +241,8 @@ export default function Scene({
           <MediaNode
             key={mediaItem.id}
             position={position}
+            scatterPosition={scatterPositions[index]}
+            formationProgress={formationProgress}
             imageUrl={mediaItem.imageUrl}
             videoUrl={mediaItem.videoUrl}
             isVideo={mediaItem.type === 'video'}
@@ -240,7 +260,7 @@ export default function Scene({
         enableDamping
         dampingFactor={0.05}
         enableZoom={false}
-        autoRotate={!isInteracting && viewMode === 'globe'}
+        autoRotate={viewMode === 'globe'}
         autoRotateSpeed={AUTO_ROTATE_SPEED}
         enablePan={false}
         touches={{
