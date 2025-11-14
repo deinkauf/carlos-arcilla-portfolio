@@ -1,5 +1,5 @@
 import { useRef, useState, useMemo } from 'react'
-import { Mesh, Shape, ShapeGeometry, Color } from 'three'
+import { Mesh, Shape, ShapeGeometry } from 'three'
 import { useFrame, useLoader } from '@react-three/fiber'
 import { TextureLoader } from 'three'
 import { Suspense } from 'react'

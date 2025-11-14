@@ -1,6 +1,9 @@
 import { useRef, useState, useEffect } from 'react'
+import { useThree } from '@react-three/fiber'
 import { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { OrbitControls } from '@react-three/drei'
+import { Vector3 } from 'three'
+import { animate } from 'motion'
 import MediaNode from './MediaNode'
 import { generateSpherePositions } from '../utils/sphericalPositions'
 import { mediaItems, MediaItem } from '../data/mediaData'
@@ -25,15 +28,104 @@ export default function Scene({
   selectedMedia,
   viewMode,
   onTransitionComplete,
-  highQualityUrl,
-  isMediaLoaded
 }: SceneProps) {
+  const { camera } = useThree()
   const controlsRef = useRef<OrbitControlsImpl>(null)
   const [isInteracting, setIsInteracting] = useState(false)
-  const interactionTimeoutRef = useRef<NodeJS.Timeout>()
+  const interactionTimeoutRef = useRef<number | undefined>()
+
+  // Camera animation state
+  const initialCameraPosition = useRef(new Vector3(0, 0, 5))
+  const targetCameraPosition = useRef(new Vector3())
+  const targetLookAt = useRef(new Vector3())
+  const [isAnimating, setIsAnimating] = useState(false)
 
   // Generate positions using Fibonacci spiral distribution
   const mediaPositions = generateSpherePositions(MEDIA_COUNT, SPHERE_RADIUS)
+
+  // Handle camera zoom transition
+  useEffect(() => {
+    if (viewMode === 'transitioning' && selectedMedia) {
+      const mediaIndex = mediaItems.findIndex(item => item.id === selectedMedia.id)
+      if (mediaIndex === -1) return
+
+      const nodePosition = mediaPositions[mediaIndex]
+
+      // Calculate camera target position (close to the node)
+      const nodeVector = new Vector3(...nodePosition)
+      const direction = nodeVector.clone().normalize()
+      const cameraDistance = 0.8 // Distance from node
+      const targetPosition = direction.multiplyScalar(nodeVector.length() + cameraDistance)
+
+      targetCameraPosition.current.copy(targetPosition)
+      targetLookAt.current.copy(nodeVector)
+
+      // Store initial camera position
+      initialCameraPosition.current.copy(camera.position)
+
+      // Disable OrbitControls during transition
+      if (controlsRef.current) {
+        controlsRef.current.enabled = false
+      }
+
+      setIsAnimating(true)
+
+      // Animate camera position
+      const cameraPos = { x: camera.position.x, y: camera.position.y, z: camera.position.z }
+      const targetPos = { x: targetPosition.x, y: targetPosition.y, z: targetPosition.z }
+
+      animate(
+        cameraPos,
+        targetPos,
+        {
+          duration: 0.8,
+        }
+      ).then(() => {
+        setIsAnimating(false)
+        onTransitionComplete()
+      })
+
+      // Update camera position in animation loop
+      const updateLoop = () => {
+        camera.position.set(cameraPos.x, cameraPos.y, cameraPos.z)
+        camera.lookAt(nodeVector)
+      }
+      const intervalId = setInterval(updateLoop, 16) // ~60fps
+      setTimeout(() => clearInterval(intervalId), 800)
+    } else if (viewMode === 'globe') {
+      // Zoom back out to initial position
+      const cameraPos = { x: camera.position.x, y: camera.position.y, z: camera.position.z }
+      const initialPos = {
+        x: initialCameraPosition.current.x,
+        y: initialCameraPosition.current.y,
+        z: initialCameraPosition.current.z
+      }
+
+      setIsAnimating(true)
+
+      animate(
+        cameraPos,
+        initialPos,
+        {
+          duration: 0.8,
+        }
+      ).then(() => {
+        setIsAnimating(false)
+        // Re-enable OrbitControls
+        if (controlsRef.current) {
+          controlsRef.current.enabled = true
+        }
+      })
+
+      // Update camera position in animation loop
+      const updateLoop = () => {
+        camera.position.set(cameraPos.x, cameraPos.y, cameraPos.z)
+        camera.lookAt(0, 0, 0)
+      }
+      const intervalId = setInterval(updateLoop, 16) // ~60fps
+      setTimeout(() => clearInterval(intervalId), 800)
+    }
+  }, [viewMode, selectedMedia, camera, mediaPositions, onTransitionComplete])
 
   // Handle user interaction detection
   useEffect(() => {
@@ -104,9 +196,10 @@ export default function Scene({
         enableDamping
         dampingFactor={0.05}
         enableZoom={false}
-        autoRotate={!isInteracting}
+        autoRotate={!isInteracting && viewMode === 'globe'}
         autoRotateSpeed={AUTO_ROTATE_SPEED}
         enablePan={false}
+        enabled={viewMode === 'globe' && !isAnimating}
         touches={{
           ONE: 2, // TOUCH.ROTATE
           TWO: 0  // Disable two-finger gestures
