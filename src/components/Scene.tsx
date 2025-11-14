@@ -43,14 +43,37 @@ export default function Scene({
 
   // Debug logging
   useEffect(() => {
-    console.log('Scene state:', { viewMode, isAnimating, isInteracting, selectedMedia: selectedMedia?.id })
+    console.log('Scene state:', {
+      viewMode,
+      isAnimating,
+      isInteracting,
+      selectedMedia: selectedMedia?.id,
+      controlsEnabled: viewMode === 'globe',
+      autoRotate: !isInteracting && viewMode === 'globe'
+    })
   }, [viewMode, isAnimating, isInteracting, selectedMedia])
+
+  // Log controls state
+  useEffect(() => {
+    if (controlsRef.current) {
+      console.log('OrbitControls state:', {
+        enabled: controlsRef.current.enabled,
+        autoRotate: controlsRef.current.autoRotate,
+        enableDamping: controlsRef.current.enableDamping
+      })
+    }
+  }, [viewMode, isInteracting])
 
   // Generate positions using Fibonacci spiral distribution
   const mediaPositions = generateSpherePositions(MEDIA_COUNT, SPHERE_RADIUS)
 
   // Handle camera zoom transition
   useEffect(() => {
+    console.log('Camera animation effect triggered:', { viewMode, selectedMediaId: selectedMedia?.id })
+
+    let animationCancelled = false
+    let rafId: number | undefined
+
     if (viewMode === 'transitioning' && selectedMedia) {
       const mediaIndex = mediaItems.findIndex(item => item.id === selectedMedia.id)
       if (mediaIndex === -1) return
@@ -71,12 +94,19 @@ export default function Scene({
 
       setIsAnimating(true)
 
-      // Animate camera position using useFrame pattern
+      // Disable OrbitControls during transition
+      if (controlsRef.current) {
+        controlsRef.current.enabled = false
+      }
+
+      // Animate camera position
       const startTime = Date.now()
       const startPos = camera.position.clone()
       const duration = 800 // ms
 
       const updateCamera = () => {
+        if (animationCancelled) return
+
         const elapsed = Date.now() - startTime
         const progress = Math.min(elapsed / duration, 1)
 
@@ -88,26 +118,33 @@ export default function Scene({
         camera.position.lerpVectors(startPos, targetPosition, eased)
         camera.lookAt(nodeVector)
 
-        if (progress < 1) {
-          requestAnimationFrame(updateCamera)
+        if (progress < 1 && !animationCancelled) {
+          rafId = requestAnimationFrame(updateCamera)
         } else {
           setIsAnimating(false)
           onTransitionComplete()
         }
       }
 
-      requestAnimationFrame(updateCamera)
+      rafId = requestAnimationFrame(updateCamera)
     } else if (viewMode === 'globe' && selectedMedia === null) {
       // Zoom back out to initial position
       const initialPos = initialCameraPosition.current
 
       setIsAnimating(true)
 
+      // Disable OrbitControls during transition
+      if (controlsRef.current) {
+        controlsRef.current.enabled = false
+      }
+
       const startTime = Date.now()
       const startPos = camera.position.clone()
       const duration = 800 // ms
 
       const updateCamera = () => {
+        if (animationCancelled) return
+
         const elapsed = Date.now() - startTime
         const progress = Math.min(elapsed / duration, 1)
 
@@ -119,14 +156,32 @@ export default function Scene({
         camera.position.lerpVectors(startPos, initialPos, eased)
         camera.lookAt(0, 0, 0)
 
-        if (progress < 1) {
-          requestAnimationFrame(updateCamera)
+        if (progress < 1 && !animationCancelled) {
+          rafId = requestAnimationFrame(updateCamera)
         } else {
           setIsAnimating(false)
+          // Re-enable OrbitControls and reset it
+          if (controlsRef.current) {
+            controlsRef.current.enabled = true
+            controlsRef.current.target.set(0, 0, 0)
+            controlsRef.current.update()
+          }
         }
       }
 
-      requestAnimationFrame(updateCamera)
+      rafId = requestAnimationFrame(updateCamera)
+    }
+
+    // Cleanup function to cancel animations
+    return () => {
+      animationCancelled = true
+      if (rafId !== undefined) {
+        cancelAnimationFrame(rafId)
+      }
+      // Re-enable controls on cleanup
+      if (controlsRef.current && viewMode === 'globe') {
+        controlsRef.current.enabled = true
+      }
     }
   }, [viewMode, selectedMedia, camera, mediaPositions, onTransitionComplete])
 
@@ -211,7 +266,6 @@ export default function Scene({
         autoRotate={!isInteracting && viewMode === 'globe'}
         autoRotateSpeed={AUTO_ROTATE_SPEED}
         enablePan={false}
-        enabled={viewMode === 'globe'}
         touches={{
           ONE: 2, // TOUCH.ROTATE
           TWO: 0  // Disable two-finger gestures
