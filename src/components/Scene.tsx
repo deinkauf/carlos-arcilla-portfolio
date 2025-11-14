@@ -162,6 +162,7 @@ export default function Scene({
             controlsRef.current.target.set(0, 0, 0)
             controlsRef.current.update()
           }
+          setIsInteracting(false) // Reset interaction state to re-enable auto-rotation
           onZoomOutComplete()
         }
       }
