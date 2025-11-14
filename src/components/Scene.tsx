@@ -44,6 +44,7 @@ export default function Scene({
   const initialCameraPosition = useRef(new Vector3(0, 0, 5))
   const targetCameraPosition = useRef(new Vector3())
   const targetLookAt = useRef(new Vector3())
+  const previousViewMode = useRef<ViewMode>(viewMode)
 
   // Generate positions using Fibonacci spiral distribution (memoize to prevent re-renders)
   const mediaPositions = useMemo(() => generateSpherePositions(MEDIA_COUNT, SPHERE_RADIUS), [])
@@ -118,8 +119,8 @@ export default function Scene({
       }
 
       rafId = requestAnimationFrame(updateCamera)
-    } else if (viewMode === 'globe' && selectedMedia === null) {
-      // Zoom back out to initial position
+    } else if (viewMode === 'globe' && selectedMedia === null && previousViewMode.current === 'focused') {
+      // Only zoom back out when returning from focused view, not during normal scatter/form
       const initialPos = initialCameraPosition.current
 
       // Disable OrbitControls during transition
@@ -159,6 +160,9 @@ export default function Scene({
 
       rafId = requestAnimationFrame(updateCamera)
     }
+
+    // Track previous view mode
+    previousViewMode.current = viewMode
 
     // Cleanup function to cancel animations
     return () => {
