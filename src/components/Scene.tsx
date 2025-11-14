@@ -181,15 +181,20 @@ export default function Scene({
       <pointLight position={[5, -3, 5]} intensity={0.2} color="#ffd8a8" />
 
       {/* Render media nodes with image textures */}
-      {mediaPositions.map((position, index) => (
-        <MediaNode
-          key={mediaItems[index].id}
-          position={position}
-          imageUrl={mediaItems[index].imageUrl}
-          isVideo={mediaItems[index].type === 'video'}
-          onMediaClick={() => onMediaClick(mediaItems[index])}
-        />
-      ))}
+      {mediaPositions.map((position, index) => {
+        const isSelected = selectedMedia?.id === mediaItems[index].id
+        return (
+          <MediaNode
+            key={mediaItems[index].id}
+            position={position}
+            imageUrl={mediaItems[index].imageUrl}
+            isVideo={mediaItems[index].type === 'video'}
+            onMediaClick={() => onMediaClick(mediaItems[index])}
+            isSelected={isSelected}
+            viewMode={viewMode}
+          />
+        )
+      })}
 
       <OrbitControls
         ref={controlsRef}

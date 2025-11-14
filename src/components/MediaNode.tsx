@@ -4,11 +4,15 @@ import { useFrame, useLoader } from '@react-three/fiber'
 import { TextureLoader } from 'three'
 import { Suspense } from 'react'
 
+type ViewMode = 'globe' | 'transitioning' | 'focused'
+
 interface MediaNodeProps {
   position: [number, number, number]
   imageUrl: string
   isVideo: boolean
   onMediaClick: () => void
+  isSelected?: boolean
+  viewMode: ViewMode
 }
 
 // Loading placeholder component
@@ -35,12 +39,24 @@ function LoadingPlaceholder({ position }: { position: [number, number, number] }
 }
 
 // Actual media node with texture
-function MediaNodeContent({ position, imageUrl, isVideo, onMediaClick }: MediaNodeProps) {
+function MediaNodeContent({ position, imageUrl, isVideo, onMediaClick, isSelected = false, viewMode }: MediaNodeProps) {
   const meshRef = useRef<Mesh>(null)
   const [hovered, setHovered] = useState(false)
 
   // Load the image texture
   const texture = useLoader(TextureLoader, imageUrl)
+
+  // Calculate opacity based on selection state and view mode
+  const getOpacity = () => {
+    if (viewMode === 'globe') {
+      return hovered ? 1 : 0.95
+    }
+    // During transition or focused, dim non-selected nodes
+    if (isSelected) {
+      return 1
+    }
+    return 0.3 // Dim non-selected nodes
+  }
 
   // Smooth scale animation
   useFrame(() => {
@@ -91,7 +107,7 @@ function MediaNodeContent({ position, imageUrl, isVideo, onMediaClick }: MediaNo
       <meshStandardMaterial
         map={texture}
         side={2}
-        opacity={hovered ? 1 : 0.95}
+        opacity={getOpacity()}
         transparent
       />
 
